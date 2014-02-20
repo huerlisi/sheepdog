@@ -390,8 +390,11 @@ static int snapshot_vdi(const struct vdi_iocb *iocb, uint32_t new_snapid,
 	/* update a base vdi */
 	base->snap_ctime = iocb->time;
 	base->child_vdi_id[idx] = new_vid;
+
+	for (int i = 0; i < ARRAY_SIZE(base->data_ref); i++)
+		base->data_ref[i].count++;
 	ret = sd_write_object(vid_to_vdi_oid(base_vid), (char *)base,
-			      SD_INODE_HEADER_SIZE, 0, false);
+			      SD_INODE_SIZE, 0, false);
 	if (ret != SD_RES_SUCCESS) {
 		ret = SD_RES_BASE_VDI_WRITE;
 		goto out;
@@ -399,6 +402,8 @@ static int snapshot_vdi(const struct vdi_iocb *iocb, uint32_t new_snapid,
 
 	/* create a new vdi */
 	new = alloc_inode(iocb, new_snapid, new_vid, base->data_vdi_id);
+	for (int i = 0; i < ARRAY_SIZE(base->data_ref); i++)
+		new->data_ref[i].generation = base->data_ref[i].generation + 1;
 	ret = sd_write_object(vid_to_vdi_oid(new_vid), (char *)new,
 			      sizeof(*new), 0, true);
 	if (ret != SD_RES_SUCCESS)
